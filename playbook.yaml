@@ -1,0 +1,7 @@
+---
+- name: Install Arch Linux
+  tags: arch_install
+  hosts: laptop
+  gather_facts: yes
+  roles:
+    - role: install_arch

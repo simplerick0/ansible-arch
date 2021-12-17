@@ -1,0 +1,53 @@
+---
+hostname: laptop
+domain_name: ackhax.com
+keymap: us
+locale: en_US.UTF-8
+ntp_country: us
+timezone: America/Phoenix
+
+new_username: simplerick
+new_password: simplerick
+new_shell: /bin/zsh
+
+github_username: simplerick0
+github_url: https://api.github.com/users/{{ github_username }}/keys
+github_ssh_key: "{{ lookup( 'url', github_url, split_lines=False ) | from_json | json_query('[3].key') }}"
+
+wifi_ssid: <wifi_ssid>
+wifi_passphrase: <wifi_passphrase>
+
+install_device_name: /dev/nvme0n1
+install_boot_partition: "{{ install_device_name }}p1"
+install_swap_partition: "{{ install_device_name }}p2"
+install_root_partition: "{{ install_device_name }}p3"
+install_root_mount_dir: /mnt
+install_boot_mount_dir: "{{ install_root_mount_dir }}/boot"
+rt_root_mount_dir: /
+rt_boot_mount_dir: /boot
+swap_size: 24GiB
+
+base_packages:
+  - base
+  - linux
+  - linux-firmware
+  - iwd # network configuration for wireless
+  - vim
+  - wget
+  - curl
+  - git
+  - openssh
+  - sudo
+  - pacman-contrib
+  - which
+  - python
+  - python-pip
+  - tmux
+
+zsh_packages:
+  - zsh
+  - zsh-completions
+  - zsh-syntax-highlighting
+  - zsh-autosuggestions
+
+packages: "{{ base_packages }} + {{ zsh_packages }}"
