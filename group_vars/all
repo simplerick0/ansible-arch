@@ -1,0 +1,8 @@
+---
+github_username: simplerick0                        # UPDATE
+github_ssh_key_index: 3                             # UPDATE
+github_url: https://api.github.com/users/{{ github_username }}/keys
+github_ssh_key: "{{ lookup( 'url', github_url, split_lines=False ) | from_json | json_query('[{{ github_ssh_key_index }}].key') }}"
+
+wifi_ssid: {{ vault_wifi_ssid }}                    # UPDATE VAULT
+wifi_passphrase: {{ vault_wifi_passphrase }}        # UPDATE VAULT

@@ -1,0 +1,4 @@
+---
+- name: Compositor | Choose Sway
+  import_tasks: sway.yaml
+  when: arch_compositor == sway

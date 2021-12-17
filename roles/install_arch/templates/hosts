@@ -2,4 +2,4 @@
 # See hosts(5) for details.
 127.0.0.1       localhost
 ::1             localhost
-127.0.1.1       {{ hostname }}.{{ domain_name }} {{ hostname }}
+127.0.1.1       {{ arch_hostname }}.{{ arch_domain_name }} {{ arch_hostname }}

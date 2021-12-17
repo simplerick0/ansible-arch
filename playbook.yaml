@@ -1,7 +1,10 @@
 ---
 - name: Install Arch Linux
   tags: arch_install
-  hosts: laptop
+  hosts: arch_laptop                         # UPDATE
   gather_facts: yes
   roles:
     - role: install_arch
+    - role: install_shell
+    - role: install_compositor
+    - role: cleanup_reboot

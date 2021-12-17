@@ -1,0 +1,4 @@
+---
+- name: Sway | Testing Import Task
+  debug:
+    msg: Hello from sway

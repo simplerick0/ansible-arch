@@ -1,0 +1,67 @@
+---
+##########################################################################
+# Group Variables: arch_laptop
+##########################################################################
+
+# Ansible Variables
+ansible_user=root
+ansible_ssh_private_key_file=/root/.ssh/rick        # UPDATE
+
+# Host Variables TODO: Split to host_vars
+arch_hostname: laptop                               # UPDATE
+arch_domain_name: ackhax.com                        # UPDATE
+
+# Group-Based Component Choices
+arch_compositor: sway
+
+# Locale-Related Variables
+arch_keymap: us                                     # UPDATE
+arch_locale: en_US.UTF-8                            # UPDATE
+arch_ntp_country: us                                # UPDATE
+arch_timezone: America/Phoenix                      # UPDATE
+
+# New User Variables
+arch_username: simplerick                           # UPDATE
+arch_password: {{ vault_arch_password }}            # UPDATE VAULT
+arch_user_shell: /bin/zsh                           # UPDATE
+
+# Host Variables TODO: Split to host_vars
+install_device_name: /dev/nvme0n1                       # UPDATE
+install_boot_partition: "{{ install_device_name }}p1"   # UPDATE
+install_swap_partition: "{{ install_device_name }}p2"   # UPDATE
+install_root_partition: "{{ install_device_name }}p3"   # UPDATE
+install_swap_size: 24GiB
+
+# Installation and Runtime Mounting Points
+install_root_mount_dir: /mnt
+install_boot_mount_dir: "{{ install_root_mount_dir }}/boot"
+rt_root_mount_dir: /
+rt_boot_mount_dir: /boot
+
+# Required Base Packages
+base_packages:
+  - base
+  - linux
+  - linux-firmware
+  - man-db
+  - openssh
+  - pacman-contrib
+  - sudo
+  - which
+  - iwd
+
+# For Role Specific Packages not needed during install, look in corresponding
+# vars files in the roles directory.
+
+# For non-specific packages, add them here
+other_packages:
+  - ansible
+  - curl
+  - git
+  - python
+  - python-pip
+  - tlp
+  - vim
+  - wget
+
+packages: "{{ base_packages }} + {{ other_packages }}"

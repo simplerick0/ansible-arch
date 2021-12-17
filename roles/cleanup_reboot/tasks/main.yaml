@@ -1,0 +1,7 @@
+---
+- name: Unmount partitions
+  become: yes
+  mount:
+    path: "{{ item }}"
+    state: unmounted
+  loop: ["{{ install_boot_mount_dir }}", "{{ install_root_mount_dir }}"]
