@@ -48,7 +48,7 @@
       label: gpt
 
       size=300MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="boot"
-      size={{ swap_size }}, type=0657FD6D-A4AB-43C4-84E5-0933C84B4F4F, name="swap"
+      size={{ install_swap_size }}, type=0657FD6D-A4AB-43C4-84E5-0933C84B4F4F, name="swap"
       type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="root"
 
 - name: Format EFI Partition
@@ -146,17 +146,17 @@
     state: absent
     path: "{{ install_root_mount_dir }}/etc/resolv.conf"
 
-- name: "Set hostname to {{ hostname  }}"
+- name: "Set hostname to {{ arch_hostname  }}"
   become: yes
-  copy: dest="{{ install_root_mount_dir }}/etc/hostname" content="{{ hostname }}"
+  copy: dest="{{ install_root_mount_dir }}/etc/hostname" content="{{ arch_hostname }}"
 
-- name: "Set language to {{ locale }}"
+- name: "Set language to {{ arch_locale }}"
   become: yes
-  copy: dest="{{ install_root_mount_dir }}/etc/locale.conf" content="LANG={{ locale }}"
+  copy: dest="{{ install_root_mount_dir }}/etc/locale.conf" content="LANG={{ arch_locale }}"
 
-- name: "Set keymap to {{ keymap }}"
+- name: "Set keymap to {{ arch_keymap }}"
   become: yes
-  copy: dest="{{ install_root_mount_dir }}/etc/vconsole.conf" content="KEYMAP={{ keymap }}"
+  copy: dest="{{ install_root_mount_dir }}/etc/vconsole.conf" content="KEYMAP={{ arch_keymap }}"
 
 - name: Configure With Chroot
   become: yes
@@ -167,7 +167,7 @@
     - /bin/bash
     - -c
     - |
-      ln -sf /usr/share/zoneinfo/{{ timezone }} /etc/localtime
+      ln -sf /usr/share/zoneinfo/{{ arch_timezone }} /etc/localtime
       hwclock --systohc
       systemctl enable systemd-networkd systemd-resolved systemd-timesyncd sshd.service iwd.service
       ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
@@ -175,44 +175,35 @@
       touch /etc/subuid
       touch /etc/subgid
       # Bastion user
-      /usr/bin/userdel --force --remove {{ new_username }} || /bin/true
-      /usr/bin/useradd --create-home --user-group --uid 1000 --shell {{ new_shell }} --non-unique {{ new_username }}
-      /usr/bin/usermod --groups adm,wheel {{ new_username }}
-      echo -e "{{ new_password }}\n{{ new_password }}" | passwd {{ new_username }}
+      /usr/bin/userdel --force --remove {{ arch_username }} || /bin/true
+      /usr/bin/useradd --create-home --user-group --uid 1000 --shell {{ arch_shell_path }} --non-unique {{ arch_username }}
+      /usr/bin/usermod --groups adm,wheel {{ arch_username }}
+      echo -e "{{ arch_password }}\n{{ arch_password }}" | passwd {{ arch_username }}
       /usr/bin/locale-gen
 
-- name: Make {{ new_username }} a sudoer
+- name: Make {{ arch_username }} a sudoer
   copy:
-    dest: "{{ install_root_mount_dir }}/etc/sudoers.d/10_{{ new_username }}"
+    dest: "{{ install_root_mount_dir }}/etc/sudoers.d/10_{{ arch_username }}"
     owner: root
     group: root
     mode: 0644
     content: |
       Defaults env_keep += "SSH_AUTH_SOCK"
-      {{ new_username }} ALL=(ALL) ALL
+      {{ arch_username }} ALL=(ALL) ALL
 
-- name: Create /home/{{ new_username }}/.zshrc
-  when: new_shell == '/bin/zsh'
-  copy:
-    dest: "{{ install_root_mount_dir }}/home/{{ new_username }}/.zshrc"
-    owner: "1000"
-    group: "1000"
-    mode: 0644
-    src: files/zshrc
-
-- name: Create /home/{{ new_username }}/.ssh
+- name: Create /home/{{ arch_username }}/.ssh
   become: yes
   file:
-    path: "{{ install_root_mount_dir }}/home/{{ new_username }}/.ssh"
+    path: "{{ install_root_mount_dir }}/home/{{ arch_username }}/.ssh"
     state: directory
     owner: "1000"
     group: "1000"
     mode: 0700
 
-- name: Create /home/{{ new_username }}/.ssh/authorized_keys
+- name: Create /home/{{ arch_username }}/.ssh/authorized_keys
   become: yes
   copy:
-    dest: "{{ install_root_mount_dir }}/home/{{ new_username }}/.ssh/authorized_keys"
+    dest: "{{ install_root_mount_dir }}/home/{{ arch_username }}/.ssh/authorized_keys"
     content: "{{ github_ssh_key }}"
     owner: "1000"
     group: "1000"
@@ -266,10 +257,3 @@
     - { name: "loader.conf", dest: "{{ rt_boot_mount_dir }}/loader" }
     - { name: "arch.conf", dest: "{{ rt_boot_mount_dir }}/loader/entries" }
     - { name: "arch_fallback.conf", dest: "{{ rt_boot_mount_dir }}/loader/entries" }
-
-- name: Unmount partitions
-  become: yes
-  mount:
-    path: "{{ item }}"
-    state: unmounted
-  loop: ["{{ install_boot_mount_dir }}", "{{ install_root_mount_dir }}"]

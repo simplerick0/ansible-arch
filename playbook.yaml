@@ -3,6 +3,8 @@
   tags: arch_install
   hosts: arch_laptop                         # UPDATE
   gather_facts: yes
+  vars_files:
+    - group_vars/vault
   roles:
     - role: install_arch
     - role: install_shell

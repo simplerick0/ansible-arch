@@ -4,8 +4,8 @@
 ##########################################################################
 
 # Ansible Variables
-ansible_user=root
-ansible_ssh_private_key_file=/root/.ssh/rick        # UPDATE
+ansible_user: root
+ansible_ssh_private_key_file: /root/.ssh/simplerick # UPDATE
 
 # Host Variables TODO: Split to host_vars
 arch_hostname: laptop                               # UPDATE
@@ -13,6 +13,7 @@ arch_domain_name: ackhax.com                        # UPDATE
 
 # Group-Based Component Choices
 arch_compositor: sway
+arch_shell: zsh
 
 # Locale-Related Variables
 arch_keymap: us                                     # UPDATE
@@ -22,8 +23,8 @@ arch_timezone: America/Phoenix                      # UPDATE
 
 # New User Variables
 arch_username: simplerick                           # UPDATE
-arch_password: {{ vault_arch_password }}            # UPDATE VAULT
-arch_user_shell: /bin/zsh                           # UPDATE
+arch_password: "{{ vault_arch_password }}"          # UPDATE VAULT
+arch_shell_path: /bin/zsh                           # UPDATE
 
 # Host Variables TODO: Split to host_vars
 install_device_name: /dev/nvme0n1                       # UPDATE
