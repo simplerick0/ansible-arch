@@ -1,0 +1,6 @@
+[Match]
+MACAddress=9c:eb:e8:1b:53:06
+
+[Link]
+Description=Asus USB-Ethernet Adapter
+Name=ethusb0

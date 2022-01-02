@@ -1,8 +1,8 @@
 ---
-- name: Unmount partitions
-  become: yes
-  mount:
-    path: "{{ item }}"
-    state: unmounted
-  loop: ["{{ install_boot_mount_dir }}", "{{ install_root_mount_dir }}"]
-  tags: cleanup
+- name: Cleanup/Reboot | Import Cleanup Tasks
+  import_tasks: cleanup.yaml
+  when: skip_cleanup == 'no'
+
+- name: Cleanup/Reboot | Import Reboot Tasks
+  import_tasks: reboot.yaml
+  when: skip_reboot == 'no'

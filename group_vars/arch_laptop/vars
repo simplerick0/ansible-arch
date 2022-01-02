@@ -4,12 +4,19 @@
 ##########################################################################
 
 # Ansible Variables
-ansible_user: root
+# Use `-e 'ansible_user=root'` on first run
+ansible_user: simplerick                            # UPDATE
 ansible_ssh_private_key_file: /root/.ssh/simplerick # UPDATE
+
+# Use `-e skip_cleanup=no` and `-e skip_reboot=no` on first run
+skip_cleanup: yes                                   # UPDATE
+skip_reboot: yes                                    # UPDATE
 
 # Host Variables TODO: Split to host_vars
 arch_hostname: laptop                               # UPDATE
 arch_domain_name: ackhax.com                        # UPDATE
+arch_wifi_mac: d4:3b:04:d4:60:70                    # UPDATE
+arch_ether_mac: e8:6a:64:b5:93:21                   # UPDATE
 
 # Group-Based Component Choices
 arch_compositor: sway
@@ -50,11 +57,12 @@ base_packages:
   - sudo
   - which
   - iwd
+  - zsh
 
 # For Role Specific Packages not needed during install, look in corresponding
 # vars files in the roles directory.
 
-# For non-specific packages, add them here
+# Non-specific packages can be added here
 other_packages:
   - ansible
   - curl

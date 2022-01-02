@@ -1,0 +1,276 @@
+---
+- name: Verify Existence of {{ install_device_name }} on laptop.ackhax.com
+  become: yes
+  stat: "path={{ install_device_name }}"
+  register: device
+  failed_when: not device.stat.exists
+
+- name: Check if Pre-Install Partitions are Mounted Already
+  block:
+    - name: Check For Mounted Root
+      command: mountpoint -q {{ install_root_mount_dir }}
+      register: root_mountpoint
+      ignore_errors: yes
+    - name: Check For Mounted Boot
+      command: mountpoint -q {{ install_boot_mount_dir }}
+      register: boot_mountpoint
+      ignore_errors: yes
+    - name: Check For Mounted Swap
+      command: wc -l /proc/swaps
+      register: swap_mountpoint
+      ignore_errors: yes
+    - name: Set Fact Variables for Mounted Disks
+      set_fact:
+        root_mounted: "{{ root_mountpoint.rc == 0 }}"
+        boot_mounted: "{{ boot_mountpoint.rc == 0 }}"
+        swap_mounted: "{{ swap_mountpoint.stdout.split(' ')[0] | int > 1 }}"
+        disks_mounted: "{{ root_mountpoint.rc == 0 or boot_mountpoint.rc == 0 }}"
+
+- name: "Print vars"
+  debug:
+    msg: |
+      root_mounted: {{ root_mounted }}
+      boot_mounted: {{ boot_mounted }}
+      swap_mounted: {{ swap_mounted }}
+  when: root_mounted is defined
+
+- name: Securely Wipe Device
+  become: yes
+  command: nvme format {{ install_device_name }} --ses=1 -f
+  when: false
+
+- name: Create Partition Table on {{ install_device_name }}
+  become: yes
+  command: sfdisk --force -W always {{ install_device_name }}
+  when: not disks_mounted
+  args:
+    stdin: |
+      label: gpt
+
+      size=300MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="boot"
+      size={{ install_swap_size }}, type=0657FD6D-A4AB-43C4-84E5-0933C84B4F4F, name="swap"
+      type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="root"
+
+- name: Format EFI Partition
+  become: yes
+  when: not boot_mounted
+  filesystem: dev={{ install_boot_partition }} fstype=vfat force=yes
+
+- name: Format Swap Partition
+  become: yes
+  when: not swap_mounted
+  command: mkswap {{ install_swap_partition }}
+
+- name: Format Root Partition
+  become: yes
+  when: not root_mounted
+  filesystem: dev={{ install_root_partition }} fstype=ext4 force=yes
+
+- name: Force Partition Read
+  become: yes
+  when: not disks_mounted
+  command: partprobe {{ install_device_name }}
+
+- name: Mount Root Partition
+  become: yes
+  when: not root_mounted
+  mount:
+    src: "{{ install_root_partition }}"
+    path: "{{ install_root_mount_dir }}"
+    state: mounted
+    fstype: ext4
+
+- name: Create {{ install_boot_mount_dir }}
+  become: yes
+  file:
+    path: "{{ install_boot_mount_dir }}"
+    state: directory
+
+- name: Mount EFI Partition
+  become: yes
+  when: not boot_mounted
+  mount:
+    src: "{{ install_boot_partition }}"
+    path: "{{ install_boot_mount_dir }}"
+    state: mounted
+    fstype: vfat
+
+- name: Enable Swap
+  become: yes
+  when: not swap_mounted
+  command: swapon {{ install_swap_partition }}
+
+- name: Update Package Mirrors to Fastest
+  become: yes
+  command: reflector --save /etc/pacman.d/mirrorlist --country us --protocol https --latest 10
+
+- name: Initialize Base System
+  become: yes
+  command: pacstrap {{ install_root_mount_dir }} {{ packages | join(' ') }} --needed
+
+- name: Generate fstab
+  become: yes
+  blockinfile:
+    path: "{{ install_root_mount_dir }}/etc/fstab"
+    backup: yes
+    insertafter: "^# <file system>"
+    block: |
+      PARTLABEL=root {{ rt_root_mount_dir }} ext4 rw,relatime 0 1
+      PARTLABEL=boot {{ rt_boot_mount_dir }} vfat rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro 0 2
+      PARTLABEL=swap none swap defaults 0 0
+
+- name: Create /var/lib/iwd
+  become: yes
+  file:
+    path: "{{ install_root_mount_dir }}/var/lib/iwd"
+    state: directory
+    
+- name: Create /etc/iwd
+  become: yes
+  file:
+    path: "{{ install_root_mount_dir }}/etc/iwd"
+    state: directory
+
+- name: Copy Template Files
+  become: yes
+  template:
+    src: "{{ item.name }}"
+    dest: "{{ install_root_mount_dir }}{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 644
+  with_items:
+    - { name: "hosts", dest: "/etc" }
+    - { name: "timesyncd.conf", dest: "/etc/systemd" }
+    - { name: "locale.gen", dest: "/etc" }
+    - { name: "iwd_main.conf", dest: "/etc/iwd/main.conf" }
+    - { name: "iwd_wifi.psk", dest: "/var/lib/iwd/{{ wifi_ssid }}.psk" }
+    - { name: "networkd_10-ethusb0.link", dest: "/etc/systemd/network/10-ethusb0.link" }
+    - { name: "networkd_20-wired.network", dest: "/etc/systemd/network/20-wired.network" }
+    - { name: "networkd_25-wireless.network", dest: "/etc/systemd/network/25-wireless.network" }
+    - { name: "udevd_10-network.rules", dest: "/etc/udevd/10-network.rules" }
+
+- name: Delete resolv.conf file
+  become: yes
+  file:
+    state: absent
+    path: "{{ install_root_mount_dir }}/etc/resolv.conf"
+
+- name: "Set hostname to {{ arch_hostname  }}"
+  become: yes
+  copy: dest="{{ install_root_mount_dir }}/etc/hostname" content="{{ arch_hostname }}"
+
+- name: "Set language to {{ arch_locale }}"
+  become: yes
+  copy: dest="{{ install_root_mount_dir }}/etc/locale.conf" content="LANG={{ arch_locale }}"
+
+- name: "Set keymap to {{ arch_keymap }}"
+  become: yes
+  copy: dest="{{ install_root_mount_dir }}/etc/vconsole.conf" content="KEYMAP={{ arch_keymap }}"
+
+- name: Configure With Chroot
+  become: yes
+  command:
+    argv:
+    - /usr/bin/arch-chroot
+    - "{{ install_root_mount_dir }}"
+    - /bin/bash
+    - -c
+    - |
+      ln -sf /usr/share/zoneinfo/{{ arch_timezone }} /etc/localtime
+      hwclock --systohc
+      systemctl mask systemctl-rfkill
+      systemctl enable systemd-networkd systemd-resolved systemd-timesyncd 
+      systemctl enable sshd.service iwd.service tlp.service
+      ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+      # For docker rootless containers
+      touch /etc/subuid
+      touch /etc/subgid
+      # Bastion user
+      /usr/bin/userdel --force --remove {{ arch_username }} || /bin/true
+      /usr/bin/useradd --create-home --user-group --uid 1000 --shell {{ arch_shell_path }} --non-unique {{ arch_username }}
+      /usr/bin/usermod --groups adm,wheel {{ arch_username }}
+      echo -e "{{ arch_password }}\n{{ arch_password }}" | passwd {{ arch_username }}
+      /usr/bin/locale-gen
+      pacman -Sy
+
+- name: Make {{ arch_username }} a sudoer
+  copy:
+    dest: "{{ install_root_mount_dir }}/etc/sudoers.d/10_{{ arch_username }}"
+    owner: root
+    group: root
+    mode: 0644
+    content: |
+      Defaults env_keep += "SSH_AUTH_SOCK"
+      {{ arch_username }} ALL=(ALL) ALL
+
+- name: Create /home/{{ arch_username }}/.ssh
+  become: yes
+  file:
+    path: "{{ install_root_mount_dir }}/home/{{ arch_username }}/.ssh"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: 0700
+
+- name: Create /home/{{ arch_username }}/.ssh/authorized_keys
+  become: yes
+  copy:
+    dest: "{{ install_root_mount_dir }}/home/{{ arch_username }}/.ssh/authorized_keys"
+    content: "{{ github_ssh_key }}"
+    owner: "1000"
+    group: "1000"
+    mode: 0600
+
+- name: Check if initramfs Already Exists
+  become: yes
+  stat: path="{{ install_boot_mount_dir }}/initramfs-linux.img"
+  register: kernel_image_present
+
+- name: Run mkinitcpio
+  when: not kernel_image_present.stat.exists
+  become: yes
+  command: "/usr/bin/arch-chroot {{ install_root_mount_dir }} {{ item }}"
+  loop:
+    - mkinitcpio -p linux
+
+- name: Verify System Booted with UEFI
+  tags: bootloader
+  become: yes
+  stat: "path=/sys/firmware/efi/efivars"
+  register: bootloader
+
+- name: Install UEFI systemd-boot
+  tags: bootloader
+  when: bootloader.stat.exists
+  become: yes
+  command: /usr/bin/arch-chroot {{ install_root_mount_dir }} bootctl install
+
+- name: Copy UEFI shell if present locally
+  tags: bootloader
+  when: bootloader.stat.exists
+  become: yes
+  ignore_errors: true
+  copy:
+    remote_src: yes
+    src: /run/archiso/bootmnt/shellx64.efi
+    dest: "{{ install_boot_mount_dir }}/shellx64.efi"
+
+- name: Copy bootloader templates
+  tags: bootloader
+  become: yes
+  when: bootloader.stat.exists
+  template:
+    src: "{{ item.name }}"
+    dest: "{{ install_root_mount_dir }}{{ item.dest }}"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  with_items:
+    - { name: "loader.conf", dest: "{{ rt_boot_mount_dir }}/loader" }
+    - { name: "arch.conf", dest: "{{ rt_boot_mount_dir }}/loader/entries" }
+    - { name: "arch_fallback.conf", dest: "{{ rt_boot_mount_dir }}/loader/entries" }
+    
+- name: Install | Set arch_installed Fact for this Run
+  set_fact:
+    arch_installed: yes

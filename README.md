@@ -4,13 +4,14 @@ booting with UEFI. If you can't do that, you'll need to lookup GRUB or some othe
 
 Initial Setup:
 * You need an archiso install disk: https://archlinux.org/download/
+  * If you configure it with cloud-init as described here: https://wiki.archlinux.org/title/Install\_Arch\_Linux\_via\_SSH you can skip the networking and seed script steps.
 * Check to make sure Secure Boot is disabled (TODO: Implement secure boot compatibility after install)
 * Boot to USB via UEFI and start the Arch Installer
 * Enable networking. If running on WiFi (iwctl device list):
   * `iwctl station wlan0 connect <wifi_ssid>`
   * This will prompt for your wifi passphrase and store the passphrase and PSK at:
     `/var/lib/iwd/<wifi_ssid>.psk`
-* Download the seed script and run which will pull down you SSH Public Key from your github account
+* Download the seed script and run it. This will pull down you SSH Public Key from your github account
   * `source <(curl -Ls https://raw.githubusercontent.com/simplerick0/ansible-arch/main/seed.sh)`
   * NOTE: The API endpoint lists your keys in the order they appear on the settings page.  Make
     sure to update the index in the python command to select the right one.
@@ -31,11 +32,14 @@ Create Inventory File (e.g.):
 * `echo "laptop" > inventory`
 * Alternatively, update `/etc/ansible/hosts`
 
-* Update `playbook.yaml` hosts
-* Update `roles/install_arch/defaults/main.yaml` (wifi info)
-* `ansible-playbook -i inventory --vault-id vault.txt playbook.yaml`
+Update the Playbook Hosts if Needed in `playbook.yaml`
+
+Run the Playbook
+* `ansible-playbook -i inventory --vault-id vault.txt playbook.yaml -e 'ansible_user=root skip_cleanup=yes skip_reboot=yes'`
   * Add `-K` to prompt for sudoer password if you are running the playbook on a post-install boot.
-  * TODO: Implement proper tags and checks for post-install boot ansible runs
+  * You also can omit the `-e 'ansible_user=root'` to use the new user instead of root.
+  * NOTE: The playbook checks for the hostname to determine if it should recreate disk partitions.
+    If the hostname is 'archiso', the `install_arch` role will be included.
   * TODO: Make sure playbook can run from localhost to do dev of the playbook on the machine
 
 Credit to: https://github.com/antoinemartin/archlinux-ansible-install

@@ -2,3 +2,38 @@
 - name: Sway | Testing Import Task
   debug:
     msg: Hello from sway
+
+- name: Sway | Install Sway Packages
+  become: yes
+  pacman:
+    name:
+      - sway
+      - swaylock
+      - swayidle
+
+- name: Sway | Copy Background Image
+  become: yes
+  copy:
+    dest: /usr/share/backgrounds/sway/pirate-ship-minimalist-4k-lw-2560x1440.jpg
+    src: pirate-ship-minimalist-4k-lw-2560x1440.jpg
+
+- name: Sway | Create Config Directory
+  file:
+    path: /home/{{ arch_username }}/.config/sway
+    state: directory
+
+- name: Sway | Create Sway Config
+  template:
+    src: sway_config.j2
+    dest: /home/{{ arch_username }}/.config/sway/config
+    owner: "{{ arch_username }}"
+    group: "{{ arch_username }}"
+    mode: "0644"
+
+- name: Sway | Update zshrc to Start Sway
+  blockinfile:
+    path: /home/{{ arch_username }}/.zshrc
+    block: |
+      if [ -z $DISPLAY ] && [ "$(tty)" = "/dev/tty1" ]; then
+        exec sway
+      fi

@@ -1,0 +1,5 @@
+---
+- name: Reboot | Reboot Host
+  reboot:
+  when: arch_installed is defined
+  tags: cleanup, reboot, cleanup_reboot

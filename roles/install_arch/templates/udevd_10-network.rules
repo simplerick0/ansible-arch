@@ -1,0 +1,2 @@
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="{{ arch_wifi_mac }}", NAME="wifi0"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="{{ arch_ether_mac }}", NAME="en0"

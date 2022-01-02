@@ -7,6 +7,6 @@
     - group_vars/vault
   roles:
     - role: install_arch
+    - role: cleanup_reboot
     - role: install_shell
     - role: install_compositor
-    - role: cleanup_reboot
